@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
@@ -15,6 +15,14 @@ app.secret_key = os.getenv("SECRET_KEY")
 # Use certifi CA bundle explicitly for cross-platform TLS reliability
 # (notably fixes common macOS certificate verification failures).
 mongo = PyMongo(app, tlsCAFile=certifi.where())
+# Health check -> verify MongoDB connectivity
+@app.route('/health')
+def health():
+    try:
+        mongo.cx.admin.command('ping')
+        return jsonify({"status": "healthy"}), 200
+    except Exception:
+        return jsonify({"status": "unhealthy"}), 503
 
 # Home page -> list students
 @app.route('/')
