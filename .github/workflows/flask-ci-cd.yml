@@ -16,25 +16,24 @@ env:
   APP_PORT: 5000
 
 jobs:
-
   test:
-  name: 1. Test
-  runs-on: ubuntu-latest
+    name: 1. Test
+    runs-on: ubuntu-latest
 
-  services:
-    mongodb:
-      image: mongo:7
-      ports:
-        - 27017:27017
-      options: >-
-        --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
-        --health-interval 10s
-        --health-timeout 5s
-        --health-retries 5
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-  env:
-    MONGO_URI: mongodb://127.0.0.1:27017/test_student_db
-    SECRET_KEY: ci-test-secret
+    env:
+      MONGO_URI: mongodb://127.0.0.1:27017/test_student_db
+      SECRET_KEY: ci-test-secret
 
     steps:
       - name: Checkout
@@ -43,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
@@ -54,207 +53,3 @@ jobs:
       - name: Run pytest
         run: |
           pytest -q
-
-  build:
-    name: 2. Build Docker Image
-    needs: test
-    runs-on: ubuntu-latest
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.image_tag }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set image tag
-        id: meta
-        run: |
-          echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Build Docker image
-        run: |
-          docker build \
-            -t flask-practice:${GITHUB_SHA} \
-            .
-
-      - name: Verify Docker image
-        run: |
-          docker image inspect flask-practice:${GITHUB_SHA}
-
-  push:
-    name: 3. Push to ECR
-    needs: build
-    runs-on: ubuntu-latest
-
-    outputs:
-      image_tag: ${{ needs.build.outputs.image_tag }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build image for ECR
-        run: |
-          docker build \
-            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${GITHUB_SHA} \
-            .
-
-      - name: Push image to ECR
-        run: |
-          docker push \
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${GITHUB_SHA}
-
-  deploy:
-    name: 4. Deploy to EC2
-    needs: push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy application to EC2
-        uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -e
-
-            AWS_REGION="us-east-1"
-            ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com"
-            ECR_REPOSITORY="flask-practice"
-            IMAGE_TAG="${{ needs.push.outputs.image_tag }}"
-            CONTAINER_NAME="flask-practice"
-
-            echo "Logging into ECR..."
-            aws ecr get-login-password --region "$AWS_REGION" | \
-              docker login --username AWS --password-stdin "$ECR_REGISTRY"
-
-            echo "Pulling image..."
-            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
-            echo "Stopping old container..."
-            docker stop "$CONTAINER_NAME" 2>/dev/null || true
-
-            echo "Removing old container..."
-            docker rm "$CONTAINER_NAME" 2>/dev/null || true
-
-            echo "Starting new container..."
-            docker run -d \
-              --name "$CONTAINER_NAME" \
-              --restart unless-stopped \
-              --env-file /home/ec2-user/.env \
-              -p 5000:5000 \
-              "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
-            echo "Waiting for application..."
-            sleep 10
-
-            echo "Checking container..."
-            docker ps --filter "name=$CONTAINER_NAME"
-
-            echo "Running health check..."
-            for i in {1..12}; do
-              if curl -fsS http://localhost:5000/health; then
-                echo
-                echo "DEPLOYMENT HEALTH CHECK PASSED"
-                exit 0
-              fi
-              echo "Health check attempt $i failed. Retrying..."
-              sleep 5
-            done
-
-            echo "DEPLOYMENT HEALTH CHECK FAILED"
-            docker logs "$CONTAINER_NAME" || true
-            exit 1
-
-  notify:
-    name: 5. Notify
-    needs:
-      - test
-      - build
-      - push
-      - deploy
-    if: always()
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Determine result
-        id: result
-        run: |
-          if [ "${{ needs.test.result }}" != "success" ]; then
-            echo "status=FAILURE" >> "$GITHUB_OUTPUT"
-            echo "stage=Test" >> "$GITHUB_OUTPUT"
-          elif [ "${{ needs.build.result }}" != "success" ]; then
-            echo "status=FAILURE" >> "$GITHUB_OUTPUT"
-            echo "stage=Build" >> "$GITHUB_OUTPUT"
-          elif [ "${{ needs.push.result }}" != "success" ]; then
-            echo "status=FAILURE" >> "$GITHUB_OUTPUT"
-            echo "stage=Push to ECR" >> "$GITHUB_OUTPUT"
-          elif [ "${{ needs.deploy.result }}" != "success" ]; then
-            echo "status=FAILURE" >> "$GITHUB_OUTPUT"
-            echo "stage=Deploy to EC2 / Health Check" >> "$GITHUB_OUTPUT"
-          else
-            echo "status=SUCCESS" >> "$GITHUB_OUTPUT"
-            echo "stage=Complete" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Send SUCCESS email
-        if: steps.result.outputs.status == 'SUCCESS'
-        uses: dawidd6/action-send-mail@v6
-        with:
-          server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "[SUCCESS] Flask CI/CD Deployment - ${{ github.sha }}"
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: ${{ secrets.SMTP_USERNAME }}
-          body: |
-            Flask CI/CD deployment completed successfully.
-
-            Status: SUCCESS
-            Branch: ${{ github.ref_name }}
-            Commit SHA: ${{ github.sha }}
-            Docker image tag: ${{ github.sha }}
-            ECR repository: flask-practice
-            EC2 target: ${{ secrets.EC2_HOST }}
-            Deployment: Successful
-            Health check: PASSED
-
-            Pipeline:
-            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-      - name: Send FAILURE email
-        if: steps.result.outputs.status == 'FAILURE'
-        uses: dawidd6/action-send-mail@v6
-        with:
-          server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "[FAILURE] Flask CI/CD Pipeline - ${{ steps.result.outputs.stage }}"
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: ${{ secrets.SMTP_USERNAME }}
-          body: |
-            Flask CI/CD pipeline failed.
-
-            Status: FAILURE
-            Failed stage: ${{ steps.result.outputs.stage }}
-            Branch: ${{ github.ref_name }}
-            Commit SHA: ${{ github.sha }}
-
-            Pipeline logs:
-            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            The failed stage must be investigated before deployment is considered successful.
