@@ -797,44 +797,6 @@ This project demonstrates practical knowledge of:
 18. Infrastructure troubleshooting
 
 ---
-
-# 20. Submission Checklist
-
-Before submitting the project, verify every item below.
-
-### GitHub
-
-- [ ] Repository is public/accessible to the evaluator.
-- [ ] `README.md` is updated.
-- [ ] `.github/workflows/flask-ci-cd.yml` is present.
-- [ ] `Dockerfile` is present.
-- [ ] `app.py` is present.
-- [ ] `requirements.txt` is present.
-- [ ] `test_app.py` is present.
-- [ ] `templates/` is present.
-- [ ] `.env.example` is present.
-- [ ] Real `.env` is NOT committed.
-- [ ] Screenshots are uploaded under `docs/screenshots/`.
-- [ ] Latest GitHub Actions run is successful.
-
-### AWS
-
-- [ ] ECR repository `flask-practice` exists.
-- [ ] Docker image is present in ECR.
-- [ ] EC2 instance is running.
-- [ ] EC2 type is `t3.micro`.
-- [ ] EC2 status checks pass.
-- [ ] `FlaskPracticeEC2Role` is attached to EC2.
-- [ ] ECR read-only permission is available to EC2.
-- [ ] SSM managed-instance permission is available to EC2.
-- [ ] `GitHubActions-FlaskPractice` IAM role exists.
-- [ ] GitHub OIDC trust relationship is configured.
-- [ ] GitHub Actions can authenticate to AWS.
-- [ ] SSM deployment succeeds.
-- [ ] Docker container is running.
-- [ ] Port `5000` is reachable.
-- [ ] Flask application opens successfully in the browser.
-
 ### Final submission
 
 - [ ] GitHub repository link copied correctly.
