@@ -1,134 +1,90 @@
-# Student Registration System
+# Flask Student Registration System – CI/CD Deployment
 
-A simple **Flask** web application to manage student records with **MongoDB** as the backend database. Users can **add, view, update, and delete** student details.
+## Project Overview
+
+This project is a Flask-based Student Registration System that uses MongoDB as the backend database.
+
+The project demonstrates a complete DevOps CI/CD workflow using GitHub Actions, Docker, Amazon ECR, Amazon EC2, AWS IAM, GitHub OIDC authentication, and AWS Systems Manager (SSM).
+
+The application is automatically tested, containerized, pushed to Amazon ECR, and deployed to an EC2 instance whenever changes are pushed to the `main` branch.
 
 ---
 
 ## Features
 
-* List all students on the home page
-* Add a new student
-* Update existing student details
-* Delete a student with confirmation
-* Simple and responsive UI using Bootstrap
+- Add student records
+- View student records
+- Update student records
+- Delete student records
+- MongoDB database integration
+- Bootstrap-based user interface
+- Docker containerization
+- Automated CI/CD pipeline
+- Automated Docker image build
+- Amazon ECR image storage
+- Automated EC2 deployment using AWS Systems Manager
+- Docker container restart policy
 
 ---
 
-## Tech Stack
+## Technology Stack
 
-* **Backend:** Python, Flask
-* **Database:** MongoDB (via Flask-PyMongo)
-* **Frontend:** HTML, Jinja2 templates, Bootstrap 5
-* **Environment Variables:** Managed via `.env` file
+### Application
 
----
+- Python 3.12
+- Flask
+- Flask-PyMongo
+- MongoDB
+- Jinja2
+- Bootstrap 5
 
-## Setup Instructions
+### DevOps
 
-### 1. Clone the repository
-
-```bash
-git clone <your-repo-url>
-cd <repo-folder>
-```
-
-### 2. Create and activate a virtual environment
-
-```bash
-python -m venv venv
-# Activate venv
-# Windows:
-venv\Scripts\activate
-# Linux / Mac:
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-**`requirements.txt` example:**
-
-```
-Flask
-Flask-PyMongo
-python-dotenv
-bson
-```
-
-### 4. Configure environment variables
-
-Create a `.env` file in the project root:
-
-```
-MONGO_URI=<your-mongodb-connection-string>
-SECRET_KEY=<your-secret-key>
-```
-
-### 5. Run the application
-
-```bash
-python app.py
-```
-
-Open your browser at: [http://localhost:8000](http://localhost:8000)
+- Git
+- GitHub
+- GitHub Actions
+- Docker
+- Amazon ECR
+- Amazon EC2
+- AWS Systems Manager
+- AWS IAM
+- GitHub OIDC
 
 ---
 
-## Project Structure
+# Architecture
 
-```
-project/
-│
-├── templates/
-│   ├── base.html
-│   ├── index.html
-│   ├── add_student.html
-│   ├── update_student.html
-│
-├── app.py
-├── requirements.txt
-└── .env
-```
+The CI/CD workflow follows this architecture:
 
----
-
-## Screenshots
-
-**Home Page**
-Lists all students with Edit/Delete buttons.
-- <img width="1902" height="607" alt="image" src="https://github.com/user-attachments/assets/a58a6a6d-4978-4769-8074-232e4d31e69d" />
-
-
-**Add Student**
-Form to add a new student.
-- <img width="1897" height="801" alt="image" src="https://github.com/user-attachments/assets/d65d25c3-ebb5-410a-adb1-e130ad7c5878" />
-
-
-**Update Student**
-Form pre-filled with student details.
-- <img width="1905" height="897" alt="image" src="https://github.com/user-attachments/assets/04febf01-879f-431f-ab07-abcfb993acf1" />
-
-
-
----
-
-## Notes
-
-* Make sure MongoDB is running and accessible via the URI in `.env`
-* Delete action includes a confirmation page to prevent accidental deletion
-* Uses `ObjectId` from `bson` to work with MongoDB document IDs
-* If you use MongoDB Atlas on macOS, install dependencies again (`pip install -r requirements.txt`). This project now uses `certifi` CA bundle explicitly to avoid common TLS certificate verification failures with `pymongo`.
-
----
-
-## License
-
-MIT License
-
----
-
-
-
+```text
+Developer
+    |
+    | git push
+    v
+GitHub Repository
+    |
+    v
+GitHub Actions
+    |
+    +----------------------+
+    |                      |
+    v                      v
+Run Tests              Build Docker Image
+    |                      |
+    |                      v
+    |                 Amazon ECR
+    |                      |
+    |                      v
+    +--------------> AWS Systems Manager
+                           |
+                           v
+                       EC2 Instance
+                           |
+                           v
+                    Docker Container
+                           |
+                           v
+                  Flask Application
+                           |
+                           v
+                        MongoDB
