@@ -15,9 +15,9 @@ env:
 
 jobs:
 
-  # =========================
+  # =========================================================
   # 1. TEST
-  # =========================
+  # =========================================================
   test:
     name: 1. Test
     runs-on: ubuntu-latest
@@ -38,6 +38,7 @@ jobs:
       SECRET_KEY: ci-test-secret
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -57,38 +58,58 @@ jobs:
           pytest -q
 
 
-  # =========================
-  # 2. BUILD AND PUSH TO ECR
-  # =========================
+  # =========================================================
+  # 2. BUILD AND PUSH DOCKER IMAGE
+  # =========================================================
   build-and-push:
     name: 2. Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: test
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
+      # -------------------------------------------------------
+      # AWS OIDC AUTHENTICATION
+      # -------------------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::627917841032:role/GitHubActions-FlaskPractice
+          aws-region: us-east-1
 
+      # -------------------------------------------------------
+      # LOGIN TO AMAZON ECR
+      # -------------------------------------------------------
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # -------------------------------------------------------
+      # BUILD DOCKER IMAGE
+      # -------------------------------------------------------
       - name: Build Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} .
 
+          docker tag \
+            $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      # -------------------------------------------------------
+      # PUSH DOCKER IMAGE TO ECR
+      # -------------------------------------------------------
       - name: Push Docker image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push \
+            $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+
+          docker push \
+            $ECR_REGISTRY/$ECR_REPOSITORY:latest
