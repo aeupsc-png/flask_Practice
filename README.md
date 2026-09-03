@@ -6,7 +6,14 @@ This project is a Flask-based Student Registration System that uses MongoDB as t
 
 The project demonstrates a complete DevOps CI/CD workflow using GitHub Actions, Docker, Amazon ECR, Amazon EC2, AWS IAM, GitHub OIDC authentication, and AWS Systems Manager (SSM).
 
-The application is automatically tested, containerized, pushed to Amazon ECR, and deployed to an EC2 instance whenever changes are pushed to the `main` branch.
+Whenever changes are pushed to the `main` branch, the GitHub Actions pipeline automatically:
+
+1. Runs automated tests.
+2. Builds the Docker image.
+3. Authenticates with AWS using GitHub OIDC.
+4. Pushes the Docker image to Amazon ECR.
+5. Deploys the application to the EC2 instance using AWS Systems Manager.
+6. Runs the Flask application inside a Docker container.
 
 ---
 
