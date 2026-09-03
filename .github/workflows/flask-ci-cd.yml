@@ -139,7 +139,7 @@ jobs:
               "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 627917841032.dkr.ecr.us-east-1.amazonaws.com",
               "docker pull 627917841032.dkr.ecr.us-east-1.amazonaws.com/flask-practice:latest",
               "docker rm -f flask-practice || true",
-              "docker run -d --name flask-practice --env-file /home/ec2-user/flask_Practice/.env -p 5000:5000 627917841032.dkr.ecr.us-east-1.amazonaws.com/flask-practice:latest"
+              "docker run -d --restart unless-stopped --name flask-practice --env-file /home/ec2-user/flask_Practice/.env -p 5000:5000 627917841032.dkr.ecr.us-east-1.amazonaws.com/flask-practice:latest"
             ]' \
             --region us-east-1 \
             --query "Command.CommandId" \
