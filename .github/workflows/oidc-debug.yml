@@ -9,43 +9,25 @@ permissions:
 
 jobs:
   debug:
+    name: Debug GitHub OIDC
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get OIDC claims
+      - name: Get OIDC token
         env:
-          OIDC_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          OIDC_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           echo "Requesting GitHub OIDC token..."
 
-          RESPONSE=$(curl -sS \
+          TOKEN=$(curl -sS \
             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+            | python -c "import sys,json; print(json.load(sys.stdin)['value'])")
 
-          TOKEN=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$RESPONSE")
+          echo "OIDC token received."
 
-          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2)
+          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f2 | tr '_-' '/+' | base64 -d 2>/dev/null)
 
-          python3 - "$PAYLOAD" <<'PY'
-          import sys
-          import base64
-          import json
-
-          payload = sys.argv[1]
-          payload += "=" * (-len(payload) % 4)
-
-          data = json.loads(
-              base64.urlsafe_b64decode(payload).decode()
-          )
-
-          print("")
-          print("===== OIDC CLAIMS =====")
-          print("iss =", data.get("iss"))
-          print("aud =", data.get("aud"))
-          print("sub =", data.get("sub"))
-          print("repository =", data.get("repository"))
-          print("repository_id =", data.get("repository_id"))
-          print("repository_owner =", data.get("repository_owner"))
-          print("repository_owner_id =", data.get("repository_owner_id"))
-          print("=======================")
+          echo "OIDC token claims:"
+          echo "$PAYLOAD" | python -m json.tool
